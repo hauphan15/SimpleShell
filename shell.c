@@ -13,6 +13,9 @@ void  checkDoubleExclmt(char** argv, char** history);
 void  redirectOut(char** argv);
 void  redirectIn(char** argv);
 void  freeArr(char** arr);
+void  cutCmd(char** argv);
+int   checkRedCmd(char** argv);
+char* getFileName(char** argv);
 
 
 void  main(void)
@@ -35,30 +38,39 @@ void  main(void)
           checkDoubleExclmt(argv, history);
           printf("2----%s\n", argv[0]);
           printf("2----%s\n", history[0]);
-          /*if (strcmp(argv[1], ">") == 0) 
+
+          int k = checkRedCmd(argv);
+          if (k == 1) 
           {  
+             printf("redirectOut\n"); 
              redirectOut(argv);
-          }*/
-          //else
+          }
+          else if (k == 2) 
           {  
+             printf("redirectIN\n"); 
+             redirectIn(argv);
+          }
+          else
+          {
+             printf("execute\n");
              execute(argv);
           }
-          
+
+         
      }
 }
 
 
 void  redirectOut(char** argv)
 {
-    int out = open(argv[2], O_RDWR|O_CREAT|O_APPEND, 0600);
+    int out = open(getFileName(argv), O_RDWR|O_CREAT|O_APPEND, 0600);
     if (-1 == out) { perror("opening cout.log"); return 255; }
 
     int save_out = dup(fileno(stdout));
 
     if (-1 == dup2(out, fileno(stdout))) { perror("cannot redirect stdout"); return 255; }
 
-    argv[1] = NULL;
-    argv[2] = NULL;
+    cutCmd(argv);
     execute(argv);
 
     fflush(stdout); 
@@ -71,7 +83,10 @@ void  redirectOut(char** argv)
 
 void  redirectIn(char** argv)
 {
-
+   argv[1] = NULL;
+   argv[1] = argv[2];
+   argv[2] = NULL;
+   execute(argv);
 }
 
 
@@ -119,12 +134,65 @@ void print(char** arr)
 }
 
 
+int checkRedCmd(char** argv)
+{
+   int i = 0;
+   while(i < 64)
+   {
+      if (strcmp(argv[i], ">") == 0)
+      {
+          return 1;
+      }
+      if (strcmp(argv[i], "<") == 0)
+      {
+          return 2;
+      }
+      i++;
+   }
+   return 0;
+}
+
+char* getFileName(char** argv)
+{
+   int i = 0;
+   while(i < 64)
+   {
+      if(argv[i] == NULL)
+      {
+          i = i - 1;
+          return argv[i];
+      }
+      i++;
+   }
+}
+
+
+void cutCmd(char** argv)
+{
+   int i = 0;
+   while(i < 64)
+   {
+      if (strcmp(argv[i], ">") == 0)
+      {
+         int j = i;
+         while(j < 64)
+         {
+           argv[j] = NULL;
+           j++;
+         }
+         break;
+      }
+      i++;
+   }
+}
+
+
 void copyArr(char** des, char** source)
 {
    int i = 0;
    while(i < 64)
    {
-      strcpy(des[i], source[i]);
+      des[i] = source[i];
       i++;
    }
 }
@@ -156,6 +224,11 @@ void checkDoubleExclmt(char** argv, char** history)
     }
 
 }
+
+
+
+
+
 
 
 
