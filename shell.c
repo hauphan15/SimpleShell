@@ -7,15 +7,21 @@
 
 void  parse(char *line, char **argv);
 void  execute(char **argv);
-void  print(char** arr);
+
 void  copyArr(char** des, char** source);
 void  checkDoubleExclmt(char** argv, char** history);
+
 void  redirectOut(char** argv);
 void  redirectIn(char** argv);
-void  freeArr(char** arr);
 void  cutCmd(char** argv);
-int   checkRedCmd(char** argv);
+int   checkCmd(char** argv);
 char* getFileName(char** argv);
+
+void  getCmd1Pipe(char** argv, char** cmd1);
+void  getCmd2Pipe(char** argv, char** cmd2);
+void  runPipeCmd(char** cmd1, char**  cmd2, char** argv);
+void  runsource(int pfd[], char** cmd1);
+void  rundest(int pfd[], char** cmd2);
 
 
 void  main(void)
@@ -23,6 +29,9 @@ void  main(void)
      char  line[1024];             
      char  *argv[64];            
      char  *history[64];
+    
+     char  *cmd1[64];
+     char  *cmd2[64];
 
      while (1) {                   
           printf("Shell -> ");    
@@ -33,28 +42,43 @@ void  main(void)
           if (strcmp(argv[0], "exit") == 0) 
                exit(0);
           
-          printf("1----%s\n", argv[0]);
-          printf("1----%s\n", history[0]);
-          checkDoubleExclmt(argv, history);
-          printf("2----%s\n", argv[0]);
-          printf("2----%s\n", history[0]);
+          /*checkDoubleExclmt(argv, history);
 
-          int k = checkRedCmd(argv);
-          if (k == 1) 
-          {  
-             printf("redirectOut\n"); 
-             redirectOut(argv);
-          }
-          else if (k == 2) 
-          {  
-             printf("redirectIN\n"); 
-             redirectIn(argv);
-          }
-          else
+          int k = checkCmd(argv);
+          switch(k)
           {
-             printf("execute\n");
-             execute(argv);
-          }
+             case 0:
+                 printf("execute\n");
+                 execute(argv);
+                 break;
+
+             case 1:
+                 printf("redirectOut\n"); 
+                 redirectOut(argv);
+                 break;
+
+             case 2:
+                 printf("redirectIN\n"); 
+                 redirectIn(argv);
+                 break;
+             case 3:
+                 printf("Pipe\n"); 
+                 runPipeCmd(cmd1, cmd2, argv);
+                 break;
+          }*/
+
+
+          //test area
+          printf("0-----%s\n", argv[0]);
+          printf("1-----%s\n", argv[1]);
+          printf("2-----%s\n", argv[2]);
+          printf("3-----%s\n", argv[3]);
+          printf("4-----%s\n", argv[4]);
+
+          getCmd1Pipe(argv, cmd1);
+          printf("5-----%s--%s\n", cmd1[0], cmd1[1]);
+          getCmd2Pipe(argv, cmd2);
+          printf("6-----%s--%s\n", cmd2[0], cmd2[1]);
 
          
      }
@@ -84,7 +108,7 @@ void  redirectOut(char** argv)
 void  redirectIn(char** argv)
 {
    argv[1] = NULL;
-   argv[1] = argv[2];
+   argv[1] = strdup(argv[2]);
    argv[2] = NULL;
    execute(argv);
 }
@@ -92,15 +116,15 @@ void  redirectIn(char** argv)
 
 void  parse(char *line, char **argv)
 {
-     while (*line != '\0') {       /* if not the end of line ....... */ 
+     while (*line != '\0') {       
           while (*line == ' ' || *line == '\t' || *line == '\n')
-               *line++ = '\0';     /* replace white spaces with 0    */
-          *argv++ = line;          /* save the argument position     */
+               *line++ = '\0';     
+          *argv++ = line;        
           while (*line != '\0' && *line != ' ' && 
                  *line != '\t' && *line != '\n') 
-               line++;             /* skip the argument until ...    */
+               line++;            
      }
-     *argv = '\0';                 /* mark the end of argument list  */
+     *argv = '\0';                 
 }
 
 
@@ -125,16 +149,7 @@ void  execute(char **argv)
      }
 }
 
-
-void print(char** arr)
-{
-  int i = 0;
-  for(i; i < sizeof(arr)/4; i++)
-    printf("\n %s %d", arr[i], i);
-}
-
-
-int checkRedCmd(char** argv)
+int checkCmd(char** argv)
 {
    int i = 0;
    while(i < 64)
@@ -146,6 +161,10 @@ int checkRedCmd(char** argv)
       if (strcmp(argv[i], "<") == 0)
       {
           return 2;
+      }
+      if (strcmp(argv[i], "|") == 0)
+      {
+          return 3;
       }
       i++;
    }
@@ -192,17 +211,16 @@ void copyArr(char** des, char** source)
    int i = 0;
    while(i < 64)
    {
-      des[i] = source[i];
+      if(source[i] == NULL)
+      {
+         des[i] = NULL;
+         break;
+      }
+      des[i] = strdup(source[i]);
       i++;
    }
 }
 
-void freeArr(char** arr)
-{
-    int i = 0;
-    for(i; i < 64; i++)
-       free(arr[i]);
-}
 
 
 void checkDoubleExclmt(char** argv, char** history)
@@ -223,6 +241,120 @@ void checkDoubleExclmt(char** argv, char** history)
         copyArr(history, argv);
     }
 
+}
+
+///////////////pipe
+
+void getCmd1Pipe(char** argv, char** cmd1)
+{
+    int i = 0;
+    while(i < 64)
+    { 
+        if(strcmp(argv[i], "|") == 0)
+        {   
+            cmd1[i] = NULL;
+            break;
+        }
+
+        cmd1[i] = strdup(argv[i]);
+        i++;
+    }
+}
+
+
+
+void getCmd2Pipe(char** argv, char** cmd2)
+{
+    int i = 0;
+    while(i < 64)
+    { 
+       if(strcmp(argv[i], "|") == 0)
+       {
+           int j = i + 1;
+           int k = 0;
+           while(j < 64)
+           {
+                if(argv[j] == NULL)
+                {   
+                    cmd2[k] = NULL;
+                    break;
+                }
+
+                cmd2[k] = strdup(argv[j]);
+                j++;
+                k++;
+           }
+       }
+
+       i++;
+
+    }
+
+}
+
+
+void runPipeCmd(char** cmd1, char** cmd2, char** argv)
+{
+    int pid, status;
+    int fd[2]; 
+
+    pipe(fd);
+
+    getCmd1Pipe(argv, cmd1);
+    getCmd2Pipe(argv, cmd2);
+
+    runsource(fd, cmd1);
+    rundest(fd, cmd2); 
+
+    close(fd[0]); 
+    close(fd[1]); 
+
+    while ((pid = wait(&status)) != -1) 
+        fprintf(stderr, "process %d exits with %d\n", pid, WEXITSTATUS(status)); 
+
+    exit(0);
+}
+
+
+void runsource(int pfd[], char** cmd1)
+{ 
+   int pid; 
+   switch (pid = fork())
+   { 
+       case 0: 
+        dup2(pfd[1], 1); 
+        close(pfd[0]); 
+        execvp(cmd1[0], cmd1); 
+        perror(cmd1[0]); 
+
+      default:
+        break; 
+
+      case -1: 
+        perror("fork"); 
+        exit(1); 
+   } 
+} 
+
+
+void rundest(int pfd[], char** cmd2) 
+{ 
+    int pid; 
+    switch (pid = fork())
+    { 
+       case 0: 
+          dup2(pfd[0], 0); 
+          close(pfd[1]); 
+          execvp(cmd2[0], cmd2); 
+          perror(cmd2[0]);
+
+      default: 
+          break; 
+
+      case -1: 
+          perror("fork"); 
+          exit(1); 
+    } 
 }
 
 
