@@ -42,45 +42,27 @@ void  main(void)
           if (strcmp(argv[0], "exit") == 0) 
                exit(0);
           
-          /*checkDoubleExclmt(argv, history);
+          checkDoubleExclmt(argv, history);
 
           int k = checkCmd(argv);
           switch(k)
           {
              case 0:
-                 printf("execute\n");
                  execute(argv);
                  break;
 
              case 1:
-                 printf("redirectOut\n"); 
                  redirectOut(argv);
                  break;
 
              case 2:
-                 printf("redirectIN\n"); 
                  redirectIn(argv);
                  break;
+
              case 3:
-                 printf("Pipe\n"); 
                  runPipeCmd(cmd1, cmd2, argv);
                  break;
-          }*/
-
-
-          //test area
-          printf("0-----%s\n", argv[0]);
-          printf("1-----%s\n", argv[1]);
-          printf("2-----%s\n", argv[2]);
-          printf("3-----%s\n", argv[3]);
-          printf("4-----%s\n", argv[4]);
-
-          getCmd1Pipe(argv, cmd1);
-          printf("5-----%s--%s\n", cmd1[0], cmd1[1]);
-          getCmd2Pipe(argv, cmd2);
-          printf("6-----%s--%s\n", cmd2[0], cmd2[1]);
-
-         
+          }
      }
 }
 
@@ -88,7 +70,7 @@ void  main(void)
 void  redirectOut(char** argv)
 {
     int out = open(getFileName(argv), O_RDWR|O_CREAT|O_APPEND, 0600);
-    if (-1 == out) { perror("opening cout.log"); return 255; }
+    if (-1 == out) { perror("opening"); return 255; }
 
     int save_out = dup(fileno(stdout));
 
@@ -120,8 +102,7 @@ void  parse(char *line, char **argv)
           while (*line == ' ' || *line == '\t' || *line == '\n')
                *line++ = '\0';     
           *argv++ = line;        
-          while (*line != '\0' && *line != ' ' && 
-                 *line != '\t' && *line != '\n') 
+          while (*line != '\0' && *line != ' ' && *line != '\t' && *line != '\n') 
                line++;            
      }
      *argv = '\0';                 
@@ -154,21 +135,24 @@ int checkCmd(char** argv)
    int i = 0;
    while(i < 64)
    {
-      if (strcmp(argv[i], ">") == 0)
+      if(argv[i] == NULL)
+      {
+          return 0;
+      }
+      else if (strcmp(argv[i], ">") == 0)
       {
           return 1;
       }
-      if (strcmp(argv[i], "<") == 0)
+      else if (strcmp(argv[i], "<") == 0)
       {
           return 2;
       }
-      if (strcmp(argv[i], "|") == 0)
+      else if (strcmp(argv[i], "|") == 0)
       {
           return 3;
       }
       i++;
    }
-   return 0;
 }
 
 char* getFileName(char** argv)
@@ -261,13 +245,12 @@ void getCmd1Pipe(char** argv, char** cmd1)
     }
 }
 
-
-
 void getCmd2Pipe(char** argv, char** cmd2)
 {
     int i = 0;
+
     while(i < 64)
-    { 
+    {  
        if(strcmp(argv[i], "|") == 0)
        {
            int j = i + 1;
@@ -277,19 +260,18 @@ void getCmd2Pipe(char** argv, char** cmd2)
                 if(argv[j] == NULL)
                 {   
                     cmd2[k] = NULL;
-                    break;
-                }
-
+ 	            break;    
+ 		}
+                 
                 cmd2[k] = strdup(argv[j]);
-                j++;
                 k++;
+                j++;
            }
+
+           break;
        }
-
        i++;
-
     }
-
 }
 
 
@@ -309,10 +291,7 @@ void runPipeCmd(char** cmd1, char** cmd2, char** argv)
     close(fd[0]); 
     close(fd[1]); 
 
-    while ((pid = wait(&status)) != -1) 
-        fprintf(stderr, "process %d exits with %d\n", pid, WEXITSTATUS(status)); 
-
-    exit(0);
+    while ((pid = wait(&status)) != -1){}
 }
 
 
@@ -356,13 +335,3 @@ void rundest(int pfd[], char** cmd2)
           exit(1); 
     } 
 }
-
-
-
-
-
-
-
-
-
-
