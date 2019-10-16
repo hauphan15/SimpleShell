@@ -22,6 +22,7 @@ void  getCmd2Pipe(char** argv, char** cmd2);
 void  runPipeCmd(char** cmd1, char**  cmd2, char** argv);
 void  runsource(int pfd[], char** cmd1);
 void  rundest(int pfd[], char** cmd2);
+int   checkAmpersand(char** argv);
 
 
 void  main(void)
@@ -42,7 +43,7 @@ void  main(void)
           if (strcmp(argv[0], "exit") == 0) 
                exit(0);
           
-          checkDoubleExclmt(argv, history);
+          checkDoubleExclmt(argv, history);     
 
           int k = checkCmd(argv);
           switch(k)
@@ -89,10 +90,32 @@ void  redirectOut(char** argv)
 
 void  redirectIn(char** argv)
 {
-   argv[1] = NULL;
-   argv[1] = strdup(argv[2]);
-   argv[2] = NULL;
-   execute(argv);
+     int fd;
+     if((fd = open(getFileName(argv), O_RDONLY, 0644)) < 0)
+     {
+         perror("open error");
+         return -1;
+     }
+      
+     int i = 0;
+     while(i < 64)
+     {
+        if(strcmp(argv[i], "<") == 0)
+        {
+            int k = i + 1;
+            argv[i] = NULL;
+            argv[i] = strdup(argv[k]);
+            argv[k] = NULL;
+            break;
+        }
+        i++;
+     }
+
+     execute(argv);
+     close(fd);
+
+     dup2(fd, 0);
+     close(fd);
 }
 
 
@@ -109,10 +132,30 @@ void  parse(char *line, char **argv)
 }
 
 
+int  checkAmpersand(char** argv)
+{
+    int i = 0;
+    while(i < 64)
+    {
+       if(argv[i] == NULL)
+       {
+           return 0;
+       }
+       else if(strcmp(argv[i], "&") == 0)
+       {
+           argv[i] = NULL;
+           return 1;
+       }
+       i++;
+    }
+}
+
+
 void  execute(char **argv)
 {
      pid_t  pid;
      int    status;
+     int ck = checkAmpersand(argv);
 
      if ((pid = fork()) < 0) {
           printf("*** ERROR: forking child process failed\n");
@@ -124,7 +167,7 @@ void  execute(char **argv)
                exit(1);
           }
      }
-     else {                                
+     else if (ck == 0){                            
           while (wait(&status) != pid)     
                ;
      }
@@ -335,3 +378,13 @@ void rundest(int pfd[], char** cmd2)
           exit(1); 
     } 
 }
+
+
+
+
+
+
+
+
+
+
